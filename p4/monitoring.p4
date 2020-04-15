@@ -6,8 +6,8 @@
 control CMSketch (out bit<11> n,
                   out bit<22> psize_ls,
                   out bit<31> iat_ls,
-                  in bit<32> row1, 
-                  in bit<32> row2, 
+                  in hash_index_t row1, 
+                  in hash_index_t row2, 
                   in bit<48> iat,
                   in headers hdr, 
                   in standard_metadata_t standard_metadata) {
