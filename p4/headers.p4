@@ -52,6 +52,9 @@ header udp_t {
 }
 
 struct metadata {
+    // Key for identifying (sport, dport) channel in transport protocol.
+    bit<32> fkey_sp_dp;
+
     // Sketch indices.
     hash_index_t sip_row1;
     hash_index_t sip_row2;
@@ -60,6 +63,7 @@ struct metadata {
     hash_index_t sp_dp_row1;
     hash_index_t sp_dp_row2;
 
+    // Result of query from the sketches.
     bit<N_WIDTH>        sip_n;
     bit<PSIZE_LS_WIDTH> sip_psize_ls;
     bit<IAT_LS_WIDTH>   sip_iat_ls;
