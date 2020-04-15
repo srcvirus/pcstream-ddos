@@ -52,15 +52,23 @@ header udp_t {
 }
 
 struct metadata {
-    bit<11> sip_n;
-    bit<22> sip_psize_ls;
-    bit<32> sip_iat_ls;
-    bit<11> sip_dip_n;
-    bit<22> sip_dip_psize_ls;
-    bit<32> sip_dip_iat_ls;
-    bit<11> sp_dp_n;
-    bit<22> sp_dp_psize_ls;
-    bit<32> sp_dp_iat_ls;
+    // Sketch indices.
+    hash_index_t sip_row1;
+    hash_index_t sip_row2;
+    hash_index_t sip_dip_row1;
+    hash_index_t sip_dip_row2;
+    hash_index_t sp_dp_row1;
+    hash_index_t sp_dp_row2;
+
+    bit<N_WIDTH>        sip_n;
+    bit<PSIZE_LS_WIDTH> sip_psize_ls;
+    bit<IAT_LS_WIDTH>   sip_iat_ls;
+    bit<N_WIDTH>        sip_dip_n;
+    bit<PSIZE_LS_WIDTH> sip_dip_psize_ls;
+    bit<IAT_LS_WIDTH>   sip_dip_iat_ls;
+    bit<N_WIDTH>        sp_dp_n;
+    bit<PSIZE_LS_WIDTH> sp_dp_psize_ls;
+    bit<IAT_LS_WIDTH>   sp_dp_iat_ls;
 }
 
 struct headers {
