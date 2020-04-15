@@ -24,6 +24,11 @@ control CMSketch (out bit<11> n,
         buf[IAT_LS_RANGE] = buf[IAT_LS_RANGE] + ((bit<IAT_LS_WIDTH>)iat);
     }
 
+    action reset() {
+        cms_r1.write(row1, 0);
+        cms_r2.write(row2, 0);
+    }
+
     apply{
         cms_r1.read(buf1, row1);
         update_sketch_entry(buf1);
