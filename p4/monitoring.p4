@@ -17,7 +17,7 @@ control CMSketch (out bit<11> n,
     bit<64> buf1 = 0;
     bit<64> buf2 = 0;
 
-    action update_sketch_entry(out bit<64> buf) {
+    action update_sketch_entry(inout bit<64> buf) {
         buf[N_RANGE] = buf[N_RANGE] + 1;
         buf[PSIZE_LS_RANGE] = 
             buf[PSIZE_LS_RANGE] + 
