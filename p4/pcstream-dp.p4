@@ -2,11 +2,12 @@
 #include <core.p4>
 #include <v1model.p4>
 
+#include "dataplane_buffer.p4"
 #include "defines.p4"
+#include "duration_sketch.p4"
 #include "headers.p4"
-#include "parser.p4"
 #include "monitoring.p4"
-
+#include "parser.p4"
 
 control MyVerifyChecksum(inout headers hdr, inout metadata meta) {   
     apply {  }
@@ -15,11 +16,22 @@ control MyVerifyChecksum(inout headers hdr, inout metadata meta) {
 control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
+                  
+    DurationSketch() sip_dsketch;
+    DurationSketch() sip_dip_dsketch;
+    DurationSketch() sp_dp_dsketch;
     CMSketch() sip;
     CMSketch() sip_dip;
     CMSketch() sp_dp;
-    bit<48> iat = 0;
+    DPBuffer() sip_buf;
+    DPBuffer() sip_dip_buf;
+    DPBuffer() sp_dp_buf;
+    bit<48> sip_iat = 0;
+    bit<48> sip_dip_iat = 0;
+    bit<48> sp_dp_iat = 0;
+    bit<48> curr_window_len = 0;
 
+    register<bit<48>>(1) window_start_ts;
     action drop() {
         mark_to_drop(standard_metadata);
     }
@@ -39,6 +51,10 @@ control MyIngress(inout headers hdr,
                 {meta.fkey_sp_dp}, SKETCH_HASH_MAX);
     }
 
+    action update_window_start_ts() {
+        window_start_ts.write(0, standard_metadata.ingress_global_timestamp);
+    }
+
     // TODO: Fix the following hack.
     // This is a really bad hack for now. No IP-based forwarding. Currently the
     // switch has only two ports, each connected to a host. This action creates
@@ -49,17 +65,49 @@ control MyIngress(inout headers hdr,
     }
 
     apply {
-        // First update all the sketches. Three different sketches contain
+        // Statistics in the data plane is computed for a fixed window size of
+        // MAX_WINDOW_SIZE defined in defines.p4. Currently this is set to
+        // 5 seconds. Statistics is reset reactively when a packet arrives.
+        window_start_ts.read(curr_window_len, 0);
+        curr_window_len = standard_metadata.ingress_global_timestamp - 
+                            curr_window_len;
+        if (curr_window_len > MAX_WINDOW_SIZE) {
+            update_window_start_ts();
+        }
+
+        // Compute packet inter-arrival time for different flow aggregation
+        // levels.
+        sip_dsketch.apply(sip_iat, meta.sip_row1, meta.sip_row2, 
+                            standard_metadata);
+        sip_dip_dsketch.apply(sip_dip_iat, meta.sip_dip_row1, meta.sip_dip_row2, 
+                                standard_metadata);
+        sp_dp_dsketch.apply(sp_dp_iat, meta.sp_dp_row1, meta.sp_dp_row2, 
+                                standard_metadata);
+
+        // Then update all the sketches. Three different sketches contain
         // information aggregated based on three different keys, namely,
         // source_ip_address, (source_ip_address, destination_ip_address), and
         // (source_port, destination_port). 
         sip.apply(meta.sip_n, meta.sip_psize_ls, meta.sip_iat_ls, 
-                    meta.sip_row1, meta.sip_row2, iat, hdr, standard_metadata); 
+                    meta.sip_row1, meta.sip_row2, sip_iat, hdr, 
+                    standard_metadata, curr_window_len); 
         sip_dip.apply(meta.sip_dip_n, meta.sip_dip_psize_ls, 
                         meta.sip_dip_iat_ls, meta.sip_dip_row1, 
-                        meta.sip_dip_row2, iat, hdr, standard_metadata); 
-        sp_dp.apply(meta.sp_dp_n, meta.sp_dp_psize_ls, meta.sp_dp_iat_ls, 
-                    meta.sp_dp_row1, meta.sp_dp_row2, iat, hdr, standard_metadata); 
+                        meta.sip_dip_row2, sip_dip_iat, hdr, standard_metadata,
+                        curr_window_len);
+        sp_dp.apply(meta.sp_dp_n, meta.sp_dp_psize_ls, meta.sp_dp_iat_ls,
+                        meta.sp_dp_row1, meta.sp_dp_row2, sp_dp_iat, hdr, 
+                        standard_metadata, curr_window_len);
+        
+        // Once the sketches have been updated and the queried data is stored
+        // instide metadata, update the data plane buffers with the monitoring
+        // data.
+        sip_buf.apply(meta.sip_n, meta.sip_psize_ls, meta.sip_iat_ls,
+                        curr_window_len);
+        sip_dip_buf.apply(meta.sip_dip_n, meta.sip_dip_psize_ls,
+                            meta.sip_dip_iat_ls, curr_window_len);
+        sp_dp_buf.apply(meta.sp_dp_n, meta.sp_dp_psize_ls, meta.sp_dp_iat_ls,
+                            curr_window_len);
 
         // Currently the following performs a switch port based forwarding. This
         // needs to be updated with IP-based forwarding.
