@@ -11,7 +11,8 @@
 #define IAT_LS_RANGE        63:33
 #define SKETCH_HASH_BASE    ((bit<32>)0)    
 #define SKETCH_HASH_MAX     ((NUM_SKETCH_ROWS) - 1)
-
+#define MAX_WINDOW_SIZE     ((bit<48>)5000000)
+#define MAX_BUFFER_SIZE     ((bit<32>)2048)
 const bit<16> ETH_TYPE_IPV4 = 0x800;
 const bit<8> IP_TYPE_TCP = 0x06;
 const bit<8> IP_TYPE_UDP = 0x14;
